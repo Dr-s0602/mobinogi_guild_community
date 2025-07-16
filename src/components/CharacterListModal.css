@@ -1,0 +1,56 @@
+.character-list-modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 600px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.character-list-modal h3 {
+  margin: 0 0 1.5rem 0;
+  color: #333;
+  text-align: center;
+}
+
+.character-edit-list {
+  margin-bottom: 2rem;
+}
+
+.character-edit-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.character-number {
+  min-width: 80px;
+  font-weight: bold;
+  color: #666;
+}
+
+.edit-fields {
+  display: flex;
+  gap: 1rem;
+  flex: 1;
+}
+
+.edit-fields input,
+.edit-fields select {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  font-size: 0.9rem;
+}
+
+.edit-fields input:focus,
+.edit-fields select:focus {
+  outline: none;
+  border-color: #667eea;
+}
