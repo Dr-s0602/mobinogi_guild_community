@@ -5,9 +5,19 @@ import './App.css'
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [characterData, setCharacterData] = useState({
+    mainCharacter: null,
+    subCharacters: []
+  })
 
-  const handleLogin = () => {
+  const handleLogin = (data) => {
+    setCharacterData({
+      mainCharacter: data.mainCharacter,
+      subCharacters: data.subCharacters || []
+    })
     setIsLoggedIn(true)
+    
+    console.log('로그인 성공:', data)
   }
 
   return (
@@ -15,7 +25,10 @@ function App() {
       {!isLoggedIn ? (
         <LoginPage onLogin={handleLogin} />
       ) : (
-        <MainPage />
+        <MainPage 
+          mainCharacter={characterData.mainCharacter}
+          subCharacters={characterData.subCharacters}
+        />
       )}
     </div>
   )

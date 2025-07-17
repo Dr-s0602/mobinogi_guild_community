@@ -3,9 +3,10 @@ import CharacterModal from './CharacterModal'
 import CharacterListModal from './CharacterListModal'
 import BarterTab from './BarterTab'
 import CharacterPanel from './CharacterPanel'
+import { updateCharacter, addSubCharacter } from '../services/electronService'
 import './PersonalTab.css'
 
-function PersonalTab() {
+function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCharacterAdd }) {
   // 상태 관리
   const [characters, setCharacters] = useState([{ id: 1, name: '', job: '전사' }])
   const [showModal, setShowModal] = useState(false)
@@ -15,6 +16,40 @@ function PersonalTab() {
   const [isDailyQuestCollapsed, setIsDailyQuestCollapsed] = useState(false)
   const [isWeeklyQuestCollapsed, setIsWeeklyQuestCollapsed] = useState(false)
   const [draggedCharacter, setDraggedCharacter] = useState(null)
+  
+  // mainCharacter와 subCharacters가 변경되면 characters 업데이트
+  useEffect(() => {
+    if (mainCharacter) {
+      const updatedCharacters = [
+        { id: 1, name: mainCharacter.name, job: mainCharacter.job || '전사' }
+      ]
+      
+      // 기존 캐릭터 유지 (최대 5개)
+      const remainingSlots = 4 - (subCharacters ? subCharacters.length : 0)
+      if (characters.length > 1) {
+        for (let i = 1; i < characters.length && i <= remainingSlots; i++) {
+          if (!characters[i].name) {
+            updatedCharacters.push(characters[i])
+          }
+        }
+      }
+      
+      // 부캐릭터 추가
+      if (subCharacters && subCharacters.length > 0) {
+        subCharacters.forEach((subChar, index) => {
+          if (updatedCharacters.length < 5) {
+            updatedCharacters.push({
+              id: updatedCharacters.length + 1,
+              name: subChar.name,
+              job: subChar.job || '전사'
+            })
+          }
+        })
+      }
+      
+      setCharacters(updatedCharacters)
+    }
+  }, [mainCharacter, subCharacters])
   
   // 계정 단위 퀘스트
   const [accountQuests, setAccountQuests] = useState({
@@ -163,16 +198,66 @@ function PersonalTab() {
     setShowModal(true)
   }
   
-  const saveCharacter = (data) => {
-    setCharacters(prev => prev.map(char => 
+  const saveCharacter = async (data) => {
+    const updatedCharacters = characters.map(char => 
       char.id === editingCharacter.id 
         ? { ...char, name: data.name, job: data.job }
         : char
-    ))
+    )
+    
+    setCharacters(updatedCharacters)
+    
+    // 메인 캐릭터인 경우 업데이트
+    if (mainCharacter && editingCharacter.id === 1) {
+      try {
+        const result = await updateCharacter(mainCharacter.name, {
+          name: data.name,
+          job: data.job
+        })
+        
+        if (result.success && onCharacterUpdate) {
+          onCharacterUpdate(result.character)
+        }
+      } catch (error) {
+        console.error('캐릭터 정보 업데이트 오류:', error)
+      }
+    }
   }
   
-  const saveAllCharacters = (updatedCharacters) => {
+  const saveAllCharacters = async (updatedCharacters) => {
     setCharacters(updatedCharacters)
+    
+    // 메인 캐릭터 정보 업데이트
+    if (mainCharacter && updatedCharacters.length > 0) {
+      const mainChar = updatedCharacters[0]
+      try {
+        const result = await updateCharacter(mainCharacter.name, {
+          name: mainChar.name,
+          job: mainChar.job
+        })
+        
+        if (result.success && onCharacterUpdate) {
+          onCharacterUpdate(result.character)
+        }
+      } catch (error) {
+        console.error('캐릭터 정보 업데이트 오류:', error)
+      }
+    }
+  }
+  
+  // 부캐릭터 추가 처리
+  const handleSubCharacterAdd = async (subChar) => {
+    if (!mainCharacter || !mainCharacter.name) return
+    
+    try {
+      const result = await addSubCharacter(mainCharacter.name, subChar)
+      
+      if (result.success && onSubCharacterAdd) {
+        onSubCharacterAdd(result.subCharacter)
+      }
+    } catch (error) {
+      console.error('부캐릭터 추가 오류:', error)
+    }
   }
   
   const getCharacterColors = () => [
@@ -730,8 +815,10 @@ function PersonalTab() {
       {showListModal && (
         <CharacterListModal 
           characters={characters}
+          mainCharacter={mainCharacter}
           onSave={saveAllCharacters}
           onClose={() => setShowListModal(false)}
+          onSubCharacterAdd={handleSubCharacterAdd}
         />
       )}
     </div>

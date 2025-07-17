@@ -1,11 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PersonalTab from './PersonalTab'
 import GuildTab from './GuildTab'
 import Footer from './Footer'
 import './MainPage.css'
 
-function MainPage() {
+function MainPage({ mainCharacter, subCharacters }) {
   const [activeTab, setActiveTab] = useState('personal')
+  const [mainChar, setMainChar] = useState(mainCharacter)
+  const [subChars, setSubChars] = useState(subCharacters || [])
+  
+  // props가 변경되면 상태 업데이트
+  useEffect(() => {
+    setMainChar(mainCharacter)
+    setSubChars(subCharacters || [])
+  }, [mainCharacter, subCharacters])
+
+  // 캐릭터 정보 업데이트 처리
+  const handleCharacterUpdate = (updatedChar) => {
+    setMainChar(updatedChar)
+  }
+  
+  // 부캐릭터 추가 처리
+  const handleSubCharacterAdd = (newSubChar) => {
+    setSubChars(prev => [...prev, newSubChar])
+  }
 
   return (
     <div className="main-container">
@@ -28,12 +46,23 @@ function MainPage() {
           </nav>
         </div>
         <div className="header-right" id="character-icons-container">
-          {/* 캐릭터 아이콘들이 여기에 렌더링됨 */}
+          {mainChar && (
+            <div className="current-character">
+              {mainChar.name} ({mainChar.job || '전사'})
+            </div>
+          )}
         </div>
       </header>
       
       <main className="main-content">
-        {activeTab === 'personal' && <PersonalTab />}
+        {activeTab === 'personal' && (
+          <PersonalTab 
+            mainCharacter={mainChar}
+            subCharacters={subChars}
+            onCharacterUpdate={handleCharacterUpdate}
+            onSubCharacterAdd={handleSubCharacterAdd}
+          />
+        )}
         {activeTab === 'guild' && <GuildTab />}
       </main>
       
