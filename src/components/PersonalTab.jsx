@@ -24,17 +24,7 @@ function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCha
         { id: 1, name: mainCharacter.name, job: mainCharacter.job || '전사' }
       ]
       
-      // 기존 캐릭터 유지 (최대 5개)
-      const remainingSlots = 4 - (subCharacters ? subCharacters.length : 0)
-      if (characters.length > 1) {
-        for (let i = 1; i < characters.length && i <= remainingSlots; i++) {
-          if (!characters[i].name) {
-            updatedCharacters.push(characters[i])
-          }
-        }
-      }
-      
-      // 부캐릭터 추가
+      // 부캐릭터 추가 (최대 5개까지)
       if (subCharacters && subCharacters.length > 0) {
         subCharacters.forEach((subChar, index) => {
           if (updatedCharacters.length < 5) {
@@ -47,7 +37,17 @@ function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCha
         })
       }
       
+      // 남은 슬롯에 비어있는 캐릭터 추가
+      while (updatedCharacters.length < 5) {
+        updatedCharacters.push({
+          id: updatedCharacters.length + 1,
+          name: '',
+          job: '전사'
+        })
+      }
+      
       setCharacters(updatedCharacters)
+      console.log('캐릭터 패널 업데이트:', updatedCharacters)
     }
   }, [mainCharacter, subCharacters])
   
@@ -186,11 +186,31 @@ function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCha
   }, [draggedCharacter]);
   
   // 캐릭터 관리 함수
-  const addCharacter = () => {
+  const addCharacter = async () => {
     if (characters.length >= 5) return
+    if (!mainCharacter || !mainCharacter.name) return
+    
     const newCharId = characters.length + 1
-    const newChar = { id: newCharId, name: '', job: '전사' }
+    const defaultName = `부캐${newCharId}`
+    const defaultJob = '전사'
+    
+    // 임시로 UI에 먼저 추가
+    const newChar = { id: newCharId, name: defaultName, job: defaultJob }
     setCharacters([...characters, newChar])
+    
+    // 구글 시트에 부캐릭터 추가
+    try {
+      const result = await addSubCharacter(mainCharacter.name, {
+        name: defaultName,
+        job: defaultJob
+      })
+      
+      if (result.success && onSubCharacterAdd) {
+        onSubCharacterAdd(result.subCharacter)
+      }
+    } catch (error) {
+      console.error('부캐릭터 추가 오류:', error)
+    }
   }
   
   const openCharacterModal = (character) => {
@@ -222,6 +242,34 @@ function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCha
         console.error('캐릭터 정보 업데이트 오류:', error)
       }
     }
+    // 부캐릭터인 경우 업데이트
+    else if (mainCharacter && editingCharacter.id > 1) {
+      try {
+        // 기존 부캐릭터 이름 찾기
+        const originalSubChar = subCharacters.find(
+          (subChar, idx) => idx === editingCharacter.id - 2
+        )
+        
+        if (originalSubChar) {
+          // 부캐릭터 업데이트 로직 (여기서는 삭제 후 추가로 구현)
+          const result = await addSubCharacter(mainCharacter.name, {
+            name: data.name,
+            job: data.job
+          })
+          
+          if (result.success && onSubCharacterAdd) {
+            // 기존 부캐릭터 목록에서 업데이트
+            const updatedSubChars = [...subCharacters]
+            updatedSubChars[editingCharacter.id - 2] = result.subCharacter
+            
+            // 부모 컴포넌트에 알림
+            onSubCharacterAdd(result.subCharacter)
+          }
+        }
+      } catch (error) {
+        console.error('부캐릭터 정보 업데이트 오류:', error)
+      }
+    }
   }
   
   const saveAllCharacters = async (updatedCharacters) => {
@@ -241,6 +289,28 @@ function PersonalTab({ mainCharacter, subCharacters, onCharacterUpdate, onSubCha
         }
       } catch (error) {
         console.error('캐릭터 정보 업데이트 오류:', error)
+      }
+    }
+    
+    // 부캐릭터 정보 업데이트
+    if (mainCharacter && updatedCharacters.length > 1 && subCharacters) {
+      for (let i = 1; i < updatedCharacters.length; i++) {
+        const subChar = updatedCharacters[i]
+        const subCharIndex = i - 1
+        
+        // 기존 부캐릭터가 있는 경우만 업데이트
+        if (subCharacters.length > subCharIndex) {
+          try {
+            const result = await addSubCharacter(mainCharacter.name, {
+              name: subChar.name,
+              job: subChar.job
+            })
+            
+            // 성공 시 처리는 생략 (전체 목록이 다시 로드됨)
+          } catch (error) {
+            console.error(`부캐릭터 ${subChar.name} 업데이트 오류:`, error)
+          }
+        }
       }
     }
   }

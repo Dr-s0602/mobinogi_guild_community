@@ -8,7 +8,7 @@ let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1200,
+    width: 1680, // 1200 * 1.4 = 1680
     height: 800,
     webPreferences: {
       nodeIntegration: true,
@@ -360,10 +360,10 @@ ipcMain.handle('login', async (event, characterName) => {
   }
 });
 
-// IPC 핸들러: 부캐릭터 추가
+// IPC 핸들러: 부캐릭터 추가/업데이트/삭제
 ipcMain.handle('add-sub-character', async (event, { mainCharacter, subCharacter }) => {
   try {
-    console.log(`부캐릭터 추가 요청:`, mainCharacter, subCharacter);
+    console.log(`부캐릭터 추가/업데이트 요청:`, mainCharacter, subCharacter);
     
     if (!mainCharacter || !subCharacter || !subCharacter.name) {
       return {
@@ -374,36 +374,110 @@ ipcMain.handle('add-sub-character', async (event, { mainCharacter, subCharacter 
     
     const sheets = await initSheetsAPI();
     
-    // 부캐릭터 목록 가져오기
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
-      range: `${mainCharacter}!E2:E50`,
-    });
-    
-    const existingNames = (response.data.values || []).flat();
-    const nextRow = existingNames.length + 2; // 헤더(1) + 기존 데이터 수
-    
-    // 이미 존재하는 부캐릭터인지 확인
-    if (existingNames.includes(subCharacter.name)) {
+    // 삭제 요청 처리 (이름이 __DELETED__로 시작하는 경우)
+    if (subCharacter.name.startsWith('__DELETED__')) {
+      // 원래 이름 추출
+      const nameParts = subCharacter.name.split('__');
+      if (nameParts.length >= 3) {
+        const originalName = nameParts[2];
+        console.log(`부캐릭터 삭제 요청: ${originalName} (시트: ${mainCharacter})`);
+        
+        try {
+          // 부캐릭터 목록 가져오기
+          const response = await sheets.spreadsheets.values.get({
+            spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
+            range: `${mainCharacter}!E2:G50`,
+          });
+          
+          const values = response.data.values || [];
+          console.log('부캐릭터 목록:', values);
+          
+          // 삭제할 부캐릭터 찾기
+          let rowToDelete = -1;
+          for (let i = 0; i < values.length; i++) {
+            if (values[i] && values[i][0] === originalName) {
+              rowToDelete = i + 2; // 헤더(1) + 인덱스(i)
+              console.log(`삭제할 행 번호: ${rowToDelete}`);
+              break;
+            }
+          }
+          
+          if (rowToDelete > 0) {
+            // 해당 행 비우기
+            await sheets.spreadsheets.values.clear({
+              spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
+              range: `${mainCharacter}!E${rowToDelete}:G${rowToDelete}`,
+            });
+            
+            console.log(`부캐릭터 ${originalName} 삭제 완료`);
+            
+            return {
+              success: true,
+              deleted: true,
+              originalName: originalName
+            };
+          } else {
+            console.log(`삭제할 부캐릭터를 찾을 수 없음: ${originalName}`);
+          }
+        } catch (error) {
+          console.error('부캐릭터 삭제 중 오류:', error);
+        }
+      }
+      
       return {
         success: false,
-        error: '이미 등록된 부캐릭터입니다.'
+        error: '삭제할 부캐릭터를 찾을 수 없습니다.'
       };
     }
     
-    // 부캐릭터 추가
-    await sheets.spreadsheets.values.update({
+    // 부캐릭터 목록 가져오기
+    const response = await sheets.spreadsheets.values.get({
       spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
-      range: `${mainCharacter}!E${nextRow}:G${nextRow}`,
-      valueInputOption: 'USER_ENTERED',
-      resource: {
-        values: [[
-          subCharacter.name,
-          subCharacter.job || '전사',
-          subCharacter.status || ''
-        ]]
-      }
+      range: `${mainCharacter}!E2:G50`,
     });
+    
+    const values = response.data.values || [];
+    
+    // 이미 존재하는 부캐릭터인지 확인
+    let existingRow = -1;
+    for (let i = 0; i < values.length; i++) {
+      if (values[i][0] === subCharacter.name) {
+        existingRow = i + 2; // 헤더(1) + 인덱스(i)
+        break;
+      }
+    }
+    
+    if (existingRow > 0) {
+      // 기존 부캐릭터 업데이트
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
+        range: `${mainCharacter}!E${existingRow}:G${existingRow}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [[
+            subCharacter.name,
+            subCharacter.job || '전사',
+            subCharacter.status || ''
+          ]]
+        }
+      });
+    } else {
+      // 새 부캐릭터 추가
+      const nextRow = values.length + 2; // 헤더(1) + 기존 데이터 수
+      
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: '19zCU_XZjcWgKlaJQQx2KJs_y7LruXjpFfe1vZQUrKlQ',
+        range: `${mainCharacter}!E${nextRow}:G${nextRow}`,
+        valueInputOption: 'USER_ENTERED',
+        resource: {
+          values: [[
+            subCharacter.name,
+            subCharacter.job || '전사',
+            subCharacter.status || ''
+          ]]
+        }
+      });
+    }
     
     return {
       success: true,
@@ -414,7 +488,7 @@ ipcMain.handle('add-sub-character', async (event, { mainCharacter, subCharacter 
       }
     };
   } catch (error) {
-    console.error('부캐릭터 추가 오류:', error);
+    console.error('부캐릭터 추가/업데이트 오류:', error);
     return {
       success: false,
       error: error.message

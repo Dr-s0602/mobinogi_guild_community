@@ -31,12 +31,7 @@ function CharacterPanel({
             <div className="icon-name">{getCharacterDisplay(char)}</div>
           </div>
         ))}
-        {characters.length < 5 && (
-          <div className="add-character-icon" onClick={addCharacter}>
-            <div className="icon-circle add-circle">+</div>
-            <div className="icon-name">추가</div>
-          </div>
-        )}
+        {/* 부캐릭터 추가는 설정에서만 가능하도록 변경 */}
         <div className="settings-character-icon" onClick={() => setShowListModal(true)}>
           <div className="icon-circle settings-circle">⚙️</div>
           <div className="icon-name">설정</div>

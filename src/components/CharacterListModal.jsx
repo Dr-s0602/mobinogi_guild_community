@@ -15,34 +15,64 @@ function CharacterListModal({ characters, mainCharacter, onSave, onClose, onSubC
     '수도사', '음유시인', '댄서', '악사', '도적', '격투가', '듀얼블레이드'
   ]
 
-  const updateCharacter = (index, field, value) => {
+  const updateCharacterField = (index, field, value) => {
     setEditedCharacters(prev => prev.map((char, i) => 
       i === index ? { ...char, [field]: value } : char
     ))
   }
 
   const handleSave = async () => {
-    // 본캐릭터 직업 업데이트
-    if (mainCharacter) {
-      const mainCharIndex = editedCharacters.findIndex(char => 
-        char.name === mainCharacter.name || char.id === mainCharacter.id
-      )
-      
-      if (mainCharIndex >= 0) {
-        const updatedMainChar = editedCharacters[mainCharIndex]
-        try {
-          await updateCharacter(mainCharacter.name, {
-            name: mainCharacter.name,
-            job: updatedMainChar.job
-          })
-        } catch (error) {
-          console.error('캐릭터 정보 업데이트 오류:', error)
+    setIsLoading(true)
+    
+    try {
+      // 본캐릭터 직업 업데이트
+      if (mainCharacter) {
+        const mainCharIndex = editedCharacters.findIndex(char => 
+          char.name === mainCharacter.name || char.id === mainCharacter.id
+        )
+        
+        if (mainCharIndex >= 0) {
+          const updatedMainChar = editedCharacters[mainCharIndex]
+          try {
+            const result = await updateCharacter(mainCharacter.name, {
+              name: mainCharacter.name,
+              job: updatedMainChar.job
+            })
+            
+            console.log('본캐릭터 업데이트 결과:', result)
+          } catch (error) {
+            console.error('캐릭터 정보 업데이트 오류:', error)
+          }
+        }
+        
+        // 부캐릭터 정보 업데이트
+        for (let i = 1; i < editedCharacters.length; i++) {
+          const subChar = editedCharacters[i]
+          
+          // 이름이 있는 부캐릭터만 처리
+          if (subChar.name && subChar.name.trim()) {
+            try {
+              // 기존 부캐릭터 업데이트 또는 새 부캐릭터 추가
+              const result = await addSubCharacter(mainCharacter.name, {
+                name: subChar.name,
+                job: subChar.job || '전사'
+              })
+              
+              console.log(`부캐릭터 ${subChar.name} 업데이트 결과:`, result)
+            } catch (error) {
+              console.error(`부캐릭터 ${subChar.name} 업데이트 오류:`, error)
+            }
+          }
         }
       }
+      
+      onSave(editedCharacters)
+    } catch (error) {
+      console.error('저장 중 오류 발생:', error)
+    } finally {
+      setIsLoading(false)
+      onClose()
     }
-    
-    onSave(editedCharacters)
-    onClose()
   }
   
   const toggleAddSubForm = () => {
@@ -89,6 +119,50 @@ function CharacterListModal({ characters, mainCharacter, onSave, onClose, onSubC
       setIsLoading(false)
     }
   }
+  
+  // 부캐릭터 삭제 함수
+  const handleDeleteSubCharacter = async (index) => {
+    // 본캐릭터(index 0)는 삭제 불가
+    if (index === 0) return
+    
+    const charToDelete = editedCharacters[index]
+    if (!charToDelete || !charToDelete.name) return
+    
+    if (window.confirm(`부캐릭터 "${charToDelete.name}"을(를) 삭제하시겠습니까?`)) {
+      setIsLoading(true)
+      
+      try {
+        // 시트에서 부캐릭터 삭제
+        if (mainCharacter && mainCharacter.name) {
+          // 삭제 요청 전송
+          const deleteResult = await addSubCharacter(mainCharacter.name, {
+            name: `__DELETED__${charToDelete.name}__${Date.now()}`,
+            job: charToDelete.job
+          })
+          
+          console.log(`부캐릭터 ${charToDelete.name} 삭제 요청 결과:`, deleteResult)
+          
+          // 캐릭터 목록에서 제거
+          const updatedCharacters = [...editedCharacters]
+          updatedCharacters[index] = { ...updatedCharacters[index], name: '', job: '전사' }
+          setEditedCharacters(updatedCharacters)
+          
+          // 부모 컴포넌트에 삭제 알림
+          if (onSubCharacterAdd && deleteResult.success) {
+            // 삭제 요청을 부모에게 전달
+            onSubCharacterAdd({
+              name: `__DELETED__${charToDelete.name}__${Date.now()}`,
+              job: charToDelete.job
+            })
+          }
+        }
+      } catch (error) {
+        console.error(`부캐릭터 ${charToDelete.name} 삭제 오류:`, error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -96,6 +170,19 @@ function CharacterListModal({ characters, mainCharacter, onSave, onClose, onSubC
         <h3>캐릭터 목록 관리</h3>
         
         <div className="character-edit-list">
+          {/* 부캐릭터 추가 버튼 - 더 눈에 띄게 상단에 배치 */}
+          {mainCharacter && editedCharacters.length < 5 && (
+            <div className="add-sub-character-container">
+              <button 
+                className="add-sub-button-prominent"
+                onClick={toggleAddSubForm}
+                disabled={isLoading || showAddSubForm}
+              >
+                + 부캐릭터 추가
+              </button>
+            </div>
+          )}
+          
           {editedCharacters.map((char, index) => (
             <div key={char.id} className="character-edit-item">
               <div className="character-number">캐릭터 {char.id}</div>
@@ -104,80 +191,94 @@ function CharacterListModal({ characters, mainCharacter, onSave, onClose, onSubC
                   type="text" 
                   placeholder="캐릭터 이름"
                   value={char.name}
-                  onChange={e => updateCharacter(index, 'name', e.target.value)}
+                  onChange={e => updateCharacterField(index, 'name', e.target.value)}
                 />
                 <select 
                   value={char.job} 
-                  onChange={e => updateCharacter(index, 'job', e.target.value)}
+                  onChange={e => updateCharacterField(index, 'job', e.target.value)}
+                >
+                  {jobs.map(jobName => (
+                    <option key={jobName} value={jobName}>{jobName}</option>
+                  ))}
+                </select>
+                
+                {/* 부캐릭터 삭제 버튼 (본캐릭터는 제외) */}
+                {index > 0 && char.name && (
+                  <button 
+                    type="button"
+                    className="delete-character-btn"
+                    onClick={() => handleDeleteSubCharacter(index)}
+                    disabled={isLoading}
+                  >
+                    삭제
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        {/* 기존 부캐릭터 추가 버튼은 제거 */}
+        
+        {showAddSubForm && (
+          <div className="sub-character-form">
+            <h4>부캐릭터 추가</h4>
+            <form onSubmit={handleAddSubCharacter}>
+              <div className="form-group">
+                <input 
+                  type="text" 
+                  placeholder="부캐릭터 이름"
+                  value={newSubCharacter.name}
+                  onChange={e => setNewSubCharacter({...newSubCharacter, name: e.target.value})}
+                  disabled={isLoading}
+                />
+                <select 
+                  value={newSubCharacter.job}
+                  onChange={e => setNewSubCharacter({...newSubCharacter, job: e.target.value})}
+                  disabled={isLoading}
                 >
                   {jobs.map(jobName => (
                     <option key={jobName} value={jobName}>{jobName}</option>
                   ))}
                 </select>
               </div>
-            </div>
-          ))}
-        </div>
-        
-        {mainCharacter && (
-          <div className="sub-character-section">
-            <button 
-              className="add-sub-button"
-              onClick={toggleAddSubForm}
-              disabled={isLoading}
-            >
-              부캐릭터 추가
-            </button>
-            
-            {showAddSubForm && (
-              <div className="sub-character-form">
-                <h4>부캐릭터 추가</h4>
-                <form onSubmit={handleAddSubCharacter}>
-                  <div className="form-group">
-                    <input 
-                      type="text" 
-                      placeholder="부캐릭터 이름"
-                      value={newSubCharacter.name}
-                      onChange={e => setNewSubCharacter({...newSubCharacter, name: e.target.value})}
-                      disabled={isLoading}
-                    />
-                    <select 
-                      value={newSubCharacter.job}
-                      onChange={e => setNewSubCharacter({...newSubCharacter, job: e.target.value})}
-                      disabled={isLoading}
-                    >
-                      {jobs.map(jobName => (
-                        <option key={jobName} value={jobName}>{jobName}</option>
-                      ))}
-                    </select>
-                  </div>
-                  {error && <div className="error-message">{error}</div>}
-                  <div className="form-actions">
-                    <button 
-                      type="submit" 
-                      className="submit-button"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? '처리 중...' : '추가'}
-                    </button>
-                    <button 
-                      type="button" 
-                      className="cancel-button"
-                      onClick={toggleAddSubForm}
-                      disabled={isLoading}
-                    >
-                      취소
-                    </button>
-                  </div>
-                </form>
+              {error && <div className="error-message">{error}</div>}
+              <div className="form-actions">
+                <button 
+                  type="submit" 
+                  className="submit-button"
+                  disabled={isLoading}
+                >
+                  {isLoading ? '처리 중...' : '추가'}
+                </button>
+                <button 
+                  type="button" 
+                  className="cancel-button"
+                  onClick={toggleAddSubForm}
+                  disabled={isLoading}
+                >
+                  취소
+                </button>
               </div>
-            )}
+            </form>
           </div>
         )}
         
         <div className="modal-buttons">
-          <button className="save-btn" onClick={handleSave}>저장</button>
-          <button className="cancel-btn" onClick={onClose}>취소</button>
+          <button 
+            className="save-btn" 
+            onClick={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? '저장 중...' : '저장'}
+          </button>
+          <button 
+            className="cancel-btn" 
+            onClick={onClose}
+            disabled={isLoading}
+          >
+            취소
+          </button>
         </div>
       </div>
     </div>

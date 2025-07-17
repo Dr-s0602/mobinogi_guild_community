@@ -49,6 +49,21 @@
   font-size: 0.9rem;
 }
 
+.delete-character-btn {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  min-width: 60px;
+}
+
+.delete-character-btn:hover {
+  background-color: #c82333;
+}
+
 .edit-fields input:focus,
 .edit-fields select:focus {
   outline: none;
@@ -60,6 +75,29 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
+}
+
+/* 새로운 부캐릭터 추가 버튼 스타일 */
+.add-sub-character-container {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.add-sub-button-prominent {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  width: 100%;
+  max-width: 300px;
+}
+
+.add-sub-button-prominent:hover {
+  background-color: #218838;
 }
 
 .sub-character-section {
