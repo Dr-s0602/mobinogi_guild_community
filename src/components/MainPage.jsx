@@ -27,7 +27,7 @@ function MainPage() {
             </button>
           </nav>
         </div>
-        <div className="header-right">
+        <div className="header-right" id="character-icons-container">
           {/* 캐릭터 아이콘들이 여기에 렌더링됨 */}
         </div>
       </header>

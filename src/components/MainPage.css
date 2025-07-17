@@ -13,6 +13,9 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
 }
 
 .header-left {
@@ -35,6 +38,8 @@
   flex: 1;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
+  min-width: 300px;
 }
 
 .tab-btn {

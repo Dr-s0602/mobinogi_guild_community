@@ -1,0 +1,83 @@
+.character-panel {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 15px;
+  padding: 0.75rem 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.character-panel .icons-container {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.character-icon {
+  text-align: center;
+  cursor: grab;
+  position: relative;
+  user-select: none;
+  -webkit-user-drag: element;
+}
+
+.character-icon:active {
+  cursor: grabbing;
+  opacity: 0.8;
+}
+
+.character-icon[draggable=true]:hover {
+  transform: scale(1.05);
+}
+
+.icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 0.25rem;
+  transition: all 0.3s;
+}
+
+.add-circle {
+  background: #28a745;
+}
+
+.settings-circle {
+  background: #6c757d;
+}
+
+.icon-name {
+  font-size: 0.7rem;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+  .character-panel {
+    bottom: 10px;
+    right: 10px;
+    padding: 0.5rem 1rem;
+  }
+  
+  .icon-circle {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
+  
+  .icon-name {
+    font-size: 0.6rem;
+  }
+}
